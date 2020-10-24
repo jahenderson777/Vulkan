@@ -28,6 +28,8 @@
 // under certain conditions, that may not run as expected.
 
 #define MVK_vulkanscene
+//#include "../examples/computeparticles/computeparticles.cpp"
+
 
 // BASICS
 

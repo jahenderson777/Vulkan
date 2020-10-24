@@ -14,7 +14,7 @@
 // Lower particle count on Android for performance reasons
 #define PARTICLES_PER_ATTRACTOR 3 * 1024
 #else
-#define PARTICLES_PER_ATTRACTOR 4 * 1024
+#define PARTICLES_PER_ATTRACTOR 10 * 1024
 #endif
 
 class VulkanExample : public VulkanExampleBase
@@ -87,7 +87,7 @@ public:
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
 		camera.setRotation(glm::vec3(-26.0f, 75.0f, 0.0f));
 		camera.setTranslation(glm::vec3(0.0f, 0.0f, -14.0f));
-		camera.movementSpeed = 2.5f;
+		camera.movementSpeed = 2.0f;
 	}
 
 	~VulkanExample()
@@ -314,65 +314,33 @@ public:
 	// Setup and fill the compute shader storage buffers containing the particles
 	void prepareStorageBuffers()
 	{
-#if 0
-		std::vector<glm::vec3> attractors = {
-			glm::vec3(2.5f, 1.5f, 0.0f),
-			glm::vec3(-2.5f, -1.5f, 0.0f),
-		};
-#else
-		std::vector<glm::vec3> attractors = {
-			glm::vec3(5.0f, 0.0f, 0.0f),
-			glm::vec3(-5.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, 0.0f, 5.0f),
-			glm::vec3(0.0f, 0.0f, -5.0f),
-			glm::vec3(0.0f, 4.0f, 0.0f),
-			glm::vec3(0.0f, -8.0f, 0.0f),
-		};
-#endif
+        numParticles = PARTICLES_PER_ATTRACTOR;
+        
+        // Initial particle positions
+        std::vector<Particle> particleBuffer(numParticles);
 
-		numParticles = static_cast<uint32_t>(attractors.size()) * PARTICLES_PER_ATTRACTOR;
+        std::default_random_engine rndEngine(benchmark.active ? 0 : (unsigned)time(nullptr));
+        std::uniform_real_distribution<float> rndDist(-2.0f, 2.0f);
 
-		// Initial particle positions
-		std::vector<Particle> particleBuffer(numParticles);
+   
+            for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
+            {
+                Particle &particle = particleBuffer[j];
 
-		std::default_random_engine rndEngine(benchmark.active ? 0 : (unsigned)time(nullptr));
-		std::normal_distribution<float> rndDist(0.0f, 1.0f);
+                // Position
+                glm::vec3 position(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)));
 
-		for (uint32_t i = 0; i < static_cast<uint32_t>(attractors.size()); i++)
-		{
-			for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
-			{
-				Particle &particle = particleBuffer[i * PARTICLES_PER_ATTRACTOR + j];
 
-				// First particle in group as heavy center of gravity
-				if (j == 0)
-				{
-					particle.pos = glm::vec4(attractors[i] * 1.5f, 90000.0f);
-					particle.vel = glm::vec4(glm::vec4(0.0f));
-				}
-				else
-				{
-					// Position
-					glm::vec3 position(attractors[i] + glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)) * 0.75f);
-					float len = glm::length(glm::normalize(position - attractors[i]));
-					position.y *= 2.0f - (len * len);
+                particle.pos = glm::vec4(position, 10.0f);
+                particle.vel = glm::vec4(0.0f);
+            
 
-					// Velocity
-					glm::vec3 angular = glm::vec3(0.5f, 1.5f, 0.5f) * (((i % 2) == 0) ? 1.0f : -1.0f);
-					glm::vec3 velocity = glm::cross((position - attractors[i]), angular) + glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine) * 0.025f);
+                // Color gradient offset
+                particle.vel.w = 0.5f;
+            }
 
-					float mass = (rndDist(rndEngine) * 0.5f + 0.5f) * 75.0f;
-					particle.pos = glm::vec4(position, mass);
-					particle.vel = glm::vec4(velocity, 0.0f);
-				}
-
-				// Color gradient offset
-				particle.vel.w = (float)i * 1.0f / static_cast<uint32_t>(attractors.size());
-			}
-		}
-
-		compute.ubo.particleCount = numParticles;
-
+        compute.ubo.particleCount = numParticles;
+   
 		VkDeviceSize storageBufferSize = particleBuffer.size() * sizeof(Particle);
 
 		// Staging
@@ -707,7 +675,7 @@ public:
 		specializationMapEntries.push_back(vks::initializers::specializationMapEntry(2, offsetof(SpecializationData, power), sizeof(float)));
 		specializationMapEntries.push_back(vks::initializers::specializationMapEntry(3, offsetof(SpecializationData, soften), sizeof(float)));
 
-		specializationData.sharedDataSize = std::min((uint32_t)1024, (uint32_t)(vulkanDevice->properties.limits.maxComputeSharedMemorySize / sizeof(glm::vec4)));
+		specializationData.sharedDataSize = std::min((uint32_t)1024*64, (uint32_t)(vulkanDevice->properties.limits.maxComputeSharedMemorySize / sizeof(glm::vec4)));
 
 		specializationData.gravity = 0.002f;
 		specializationData.power = 0.75f;

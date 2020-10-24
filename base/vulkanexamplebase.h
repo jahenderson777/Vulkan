@@ -86,7 +86,7 @@ private:
 	void createPipelineCache();
 	void createCommandPool();
 	void createSynchronizationPrimitives();
-	void initSwapchain();
+	
 	void setupSwapChain();
 	void createCommandBuffers();
 	void destroyCommandBuffers();
@@ -154,6 +154,7 @@ protected:
 	} semaphores;
 	std::vector<VkFence> waitFences;
 public:
+    void initSwapchain();
 	bool prepared = false;
 	bool resized = false;
 	uint32_t width = 1280;
