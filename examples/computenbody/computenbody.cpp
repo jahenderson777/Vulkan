@@ -114,6 +114,7 @@ public:
 	}
 
 	void loadAssets()
+    
 	{
 		textures.particle.loadFromFile(getAssetPath() + "textures/particle01_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
 		textures.gradient.loadFromFile(getAssetPath() + "textures/particle_gradient_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
@@ -321,7 +322,7 @@ public:
       do { x = random(-1.0f, 1.0f); y = random(-1.0f, 1.0f); z = x*x + y*y; } while (z > 1.0f);
       do { u = random(-1.0f, 1.0f); v = random(-1.0f, 1.0f); w = u*u + v*v; } while (w > 1.0f);
       s = sqrt((1.0f-z) / w);
-      return glm::vec4(x, y, s*u, s*v);
+      return glm::vec4(y, s*u, s*v, x);
     }
     
 
@@ -337,11 +338,8 @@ public:
         for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
         {
             Particle &particle = particleBuffer[j];
-
             particle.pos = glm::vec4(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)), 10.0f);
-            particle.vel = random_quaternion();
-        
-            //particle.vel.w = 0.5f; // Color gradient offset
+            particle.vel = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine));
         }
         
         {
