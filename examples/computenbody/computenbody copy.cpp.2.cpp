@@ -14,7 +14,7 @@
 // Lower particle count on Android for performance reasons
 #define PARTICLES_PER_ATTRACTOR 3 * 1024
 #else
-#define PARTICLES_PER_ATTRACTOR 10 * 1024
+#define PARTICLES_PER_ATTRACTOR 256// * 1024
 #endif
 
 class VulkanExample : public VulkanExampleBase
@@ -81,13 +81,13 @@ public:
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
-		title = "E3 meta-space physics";
+		title = "Compute shader N-body system";
 		settings.overlay = true;
 		camera.type = Camera::CameraType::lookat;
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
 		camera.setRotation(glm::vec3(-26.0f, 75.0f, 0.0f));
-		camera.setTranslation(glm::vec3(0.0f, 0.0f, -10.0f));
-		camera.movementSpeed = 2.0f;
+		camera.setTranslation(glm::vec3(0.0f, 0.0f, -14.0f));
+		camera.movementSpeed = 2.5f;
 	}
 
 	~VulkanExample()
@@ -220,7 +220,7 @@ public:
 
 	}
 
-	void buildComputeCommandBuffer() // some setup of compute stages
+	void buildComputeCommandBuffer()
 	{
 		VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
 
@@ -279,8 +279,8 @@ public:
 
 		// Second pass: Integrate particles
 		// -------------------------------------------------------------------------------------------------------
-		//vkCmdBindPipeline(compute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, compute.pipelineIntegrate);
-		//vkCmdDispatch(compute.commandBuffer, numParticles / 256, 1, 1);
+		vkCmdBindPipeline(compute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, compute.pipelineIntegrate);
+		vkCmdDispatch(compute.commandBuffer, numParticles / 256, 1, 1);
 
 		// Release barrier
 		if (graphics.queueFamilyIndex != compute.queueFamilyIndex)
@@ -310,131 +310,159 @@ public:
 
 		vkEndCommandBuffer(compute.commandBuffer);
 	}
-    
-    static float random(float min, float max)
-    {
-        return (min + 1) + (((float) rand()) / (float) RAND_MAX) * (max - (min + 1));
-    }
-    
-    static glm::vec4 random_quaternion() {
-      float x,y,z, u,v,w, s;
-      do { x = random(-1.0f, 1.0f); y = random(-1.0f, 1.0f); z = x*x + y*y; } while (z > 1.0f);
-      do { u = random(-1.0f, 1.0f); v = random(-1.0f, 1.0f); w = u*u + v*v; } while (w > 1.0f);
-      s = sqrt((1.0f-z) / w);
-      return glm::vec4(x, y, s*u, s*v);
-    }
-    
 
+    
+    
 	// Setup and fill the compute shader storage buffers containing the particles
 	void prepareStorageBuffers()
 	{
-        numParticles = PARTICLES_PER_ATTRACTOR;
-        std::vector<Particle> particleBuffer(numParticles);
+#if 1
+		std::vector<glm::vec3> attractors = {
+            glm::vec3(0.0f, 0.0f, 0.0f)
+	//		glm::vec3(2.5f, 1.5f, 0.0f),
+	//		glm::vec3(-2.5f, -1.5f, 0.0f),
+		};
+#else
+		std::vector<glm::vec3> attractors = {
+			glm::vec3(5.0f, 0.0f, 0.0f),
+			glm::vec3(-5.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 0.0f, 5.0f),
+			glm::vec3(0.0f, 0.0f, -5.0f),
+			glm::vec3(0.0f, 4.0f, 0.0f),
+			glm::vec3(0.0f, -8.0f, 0.0f),
+		};
+#endif
 
-        std::default_random_engine rndEngine(benchmark.active ? 0 : (unsigned)time(nullptr));
-        std::uniform_real_distribution<float> rndDist(-2.0f, 2.0f);
+		numParticles = static_cast<uint32_t>(attractors.size()) * PARTICLES_PER_ATTRACTOR;
 
-        for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
-        {
-            Particle &particle = particleBuffer[j];
+		// Initial particle positions
+		std::vector<Particle> particleBuffer(numParticles);
 
-            particle.pos = glm::vec4(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)), 10.0f);
-            particle.vel = random_quaternion();
-        
-            //particle.vel.w = 0.5f; // Color gradient offset
-        }
-        
-        {
-            compute.ubo.particleCount = numParticles;
-       
-            VkDeviceSize storageBufferSize = particleBuffer.size() * sizeof(Particle);
-            
-            // Staging
-            // SSBO won't be changed on the host after upload so copy to device local memory
+		std::default_random_engine rndEngine(benchmark.active ? 0 : (unsigned)time(nullptr));
+		std::normal_distribution<float> rndDist(0.0f, 1.0f);
 
-            vks::Buffer stagingBuffer;
+		for (uint32_t i = 0; i < static_cast<uint32_t>(attractors.size()); i++)
+		{
+			for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
+			{
+				Particle &particle = particleBuffer[i * PARTICLES_PER_ATTRACTOR + j];
 
-            vulkanDevice->createBuffer(
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                &stagingBuffer,
-                storageBufferSize,
-                particleBuffer.data());
+				// First particle in group as heavy center of gravity
+				if (j == 0)
+				{
+					particle.pos = glm::vec4(attractors[i] * 1.5f, 90000.0f);
+					particle.vel = glm::vec4(glm::vec4(0.0f));
+				}
+				else
+				{
+					// Position
+					glm::vec3 position(attractors[i] + glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)) * 0.75f);
+					float len = glm::length(glm::normalize(position - attractors[i]));
+					position.y *= 2.0f - (len * len);
 
-            vulkanDevice->createBuffer(
-                // The SSBO will be used as a storage buffer for the compute pipeline and as a vertex buffer in the graphics pipeline
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                &compute.storageBuffer,
-                storageBufferSize);
+					// Velocity
+					glm::vec3 angular = glm::vec3(0.5f, 1.5f, 0.5f) * (((i % 2) == 0) ? 1.0f : -1.0f);
+					glm::vec3 velocity = glm::cross((position - attractors[i]), angular) + glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine) * 0.025f);
 
-            // Copy from staging buffer to storage buffer
-            VkCommandBuffer copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-            VkBufferCopy copyRegion = {};
-            copyRegion.size = storageBufferSize;
-            vkCmdCopyBuffer(copyCmd, stagingBuffer.buffer, compute.storageBuffer.buffer, 1, &copyRegion);
-            // Execute a transfer barrier to the compute queue, if necessary
-            if (graphics.queueFamilyIndex != compute.queueFamilyIndex)
-            {
-                VkBufferMemoryBarrier buffer_barrier =
-                {
-                    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                    nullptr,
-                    VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-                    0,
-                    graphics.queueFamilyIndex,
-                    compute.queueFamilyIndex,
-                    compute.storageBuffer.buffer,
-                    0,
-                    compute.storageBuffer.size
-                };
+					float mass = (rndDist(rndEngine) * 0.5f + 0.5f) * 75.0f;
+					particle.pos = glm::vec4(position, mass);
+					particle.vel = glm::vec4(velocity, 0.0f);
+				}
 
-                vkCmdPipelineBarrier(
-                    copyCmd,
-                    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                    0,
-                    0, nullptr,
-                    1, &buffer_barrier,
-                    0, nullptr);
-            }
-            vulkanDevice->flushCommandBuffer(copyCmd, queue, true);
+				// Color gradient offset
+				particle.vel.w = (float)i * 1.0f / static_cast<uint32_t>(attractors.size());
+			}
+		}
 
-            stagingBuffer.destroy();
+		compute.ubo.particleCount = numParticles;
 
-            // Binding description
-            vertices.bindingDescriptions.resize(1);
-            vertices.bindingDescriptions[0] =
-                vks::initializers::vertexInputBindingDescription(
-                    VERTEX_BUFFER_BIND_ID,
-                    sizeof(Particle),
-                    VK_VERTEX_INPUT_RATE_VERTEX);
+		VkDeviceSize storageBufferSize = particleBuffer.size() * sizeof(Particle);
 
-            // Attribute descriptions
-            // Describes memory layout and shader positions
-            vertices.attributeDescriptions.resize(2);
-            // Location 0 : Position
-            vertices.attributeDescriptions[0] =
-                vks::initializers::vertexInputAttributeDescription(
-                    VERTEX_BUFFER_BIND_ID,
-                    0,
-                    VK_FORMAT_R32G32B32A32_SFLOAT,
-                    offsetof(Particle, pos));
-            // Location 1 : Velocity (used for gradient lookup)
-            vertices.attributeDescriptions[1] =
-                vks::initializers::vertexInputAttributeDescription(
-                    VERTEX_BUFFER_BIND_ID,
-                    1,
-                    VK_FORMAT_R32G32B32A32_SFLOAT,
-                    offsetof(Particle, vel));
+		// Staging
+		// SSBO won't be changed on the host after upload so copy to device local memory
 
-            // Assign to vertex buffer
-            vertices.inputState = vks::initializers::pipelineVertexInputStateCreateInfo();
-            vertices.inputState.vertexBindingDescriptionCount = static_cast<uint32_t>(vertices.bindingDescriptions.size());
-            vertices.inputState.pVertexBindingDescriptions = vertices.bindingDescriptions.data();
-            vertices.inputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertices.attributeDescriptions.size());
-            vertices.inputState.pVertexAttributeDescriptions = vertices.attributeDescriptions.data();
-        }
+		vks::Buffer stagingBuffer;
+
+		vulkanDevice->createBuffer(
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			&stagingBuffer,
+			storageBufferSize,
+			particleBuffer.data());
+
+		vulkanDevice->createBuffer(
+			// The SSBO will be used as a storage buffer for the compute pipeline and as a vertex buffer in the graphics pipeline
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			&compute.storageBuffer,
+			storageBufferSize);
+
+		// Copy from staging buffer to storage buffer
+		VkCommandBuffer copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+		VkBufferCopy copyRegion = {};
+		copyRegion.size = storageBufferSize;
+		vkCmdCopyBuffer(copyCmd, stagingBuffer.buffer, compute.storageBuffer.buffer, 1, &copyRegion);
+		// Execute a transfer barrier to the compute queue, if necessary
+		if (graphics.queueFamilyIndex != compute.queueFamilyIndex)
+		{
+			VkBufferMemoryBarrier buffer_barrier =
+			{
+				VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+				nullptr,
+				VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+				0,
+				graphics.queueFamilyIndex,
+				compute.queueFamilyIndex,
+				compute.storageBuffer.buffer,
+				0,
+				compute.storageBuffer.size
+			};
+
+			vkCmdPipelineBarrier(
+				copyCmd,
+				VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+				0,
+				0, nullptr,
+				1, &buffer_barrier,
+				0, nullptr);
+		}
+		vulkanDevice->flushCommandBuffer(copyCmd, queue, true);
+
+		stagingBuffer.destroy();
+
+		// Binding description
+		vertices.bindingDescriptions.resize(1);
+		vertices.bindingDescriptions[0] =
+			vks::initializers::vertexInputBindingDescription(
+				VERTEX_BUFFER_BIND_ID,
+				sizeof(Particle),
+				VK_VERTEX_INPUT_RATE_VERTEX);
+
+		// Attribute descriptions
+		// Describes memory layout and shader positions
+		vertices.attributeDescriptions.resize(2);
+		// Location 0 : Position
+		vertices.attributeDescriptions[0] =
+			vks::initializers::vertexInputAttributeDescription(
+				VERTEX_BUFFER_BIND_ID,
+				0,
+				VK_FORMAT_R32G32B32A32_SFLOAT,
+				offsetof(Particle, pos));
+		// Location 1 : Velocity (used for gradient lookup)
+		vertices.attributeDescriptions[1] =
+			vks::initializers::vertexInputAttributeDescription(
+				VERTEX_BUFFER_BIND_ID,
+				1,
+				VK_FORMAT_R32G32B32A32_SFLOAT,
+				offsetof(Particle, vel));
+
+		// Assign to vertex buffer
+		vertices.inputState = vks::initializers::pipelineVertexInputStateCreateInfo();
+		vertices.inputState.vertexBindingDescriptionCount = static_cast<uint32_t>(vertices.bindingDescriptions.size());
+		vertices.inputState.pVertexBindingDescriptions = vertices.bindingDescriptions.data();
+		vertices.inputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertices.attributeDescriptions.size());
+		vertices.inputState.pVertexAttributeDescriptions = vertices.attributeDescriptions.data();
 	}
 
 	void setupDescriptorPool()
@@ -695,8 +723,8 @@ public:
 		VK_CHECK_RESULT(vkCreateComputePipelines(device, pipelineCache, 1, &computePipelineCreateInfo, nullptr, &compute.pipelineCalculate));
 
 		// 2nd pass
-		//computePipelineCreateInfo.stage = loadShader(getShadersPath() + "computenbody/particle_integrate.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-		//VK_CHECK_RESULT(vkCreateComputePipelines(device, pipelineCache, 1, &computePipelineCreateInfo, nullptr, &compute.pipelineIntegrate));
+		computePipelineCreateInfo.stage = loadShader(getShadersPath() + "computenbody/particle_integrate.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+		VK_CHECK_RESULT(vkCreateComputePipelines(device, pipelineCache, 1, &computePipelineCreateInfo, nullptr, &compute.pipelineIntegrate));
 
 		// Separate command pool as queue family for compute may be different than graphics
 		VkCommandPoolCreateInfo cmdPoolInfo = {};

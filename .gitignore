@@ -234,3 +234,8 @@ data/textures/**
 data/README_asset_pack.md
 data/font*.*
 data/roboto*.*
+
+vulkanExamples.xcodeproj/project.xcworkspace/**
+vulkanExamples.xcodeproj/xcuserdata/**
+xcode/examples.xcodeproj/project.xcworkspace/**
+Robot-Medium-license.txt
