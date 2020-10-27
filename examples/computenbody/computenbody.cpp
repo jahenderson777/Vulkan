@@ -14,7 +14,7 @@
 // Lower particle count on Android for performance reasons
 #define PARTICLES_PER_ATTRACTOR 3 * 1024
 #else
-#define PARTICLES_PER_ATTRACTOR 14 * 1024
+#define PARTICLES_PER_ATTRACTOR 24 * 1024
 #endif
 
 class VulkanExample : public VulkanExampleBase
