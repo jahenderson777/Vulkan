@@ -20,7 +20,7 @@ out gl_PerVertex
 
 void main () 
 {
-	const float spriteSize = 0.13;// * inPos.w; // Point size influenced by mass (stored in inPos.w);
+	const float spriteSize = 0.03;// * inPos.w; // Point size influenced by mass (stored in inPos.w);
 
 	vec4 eyePos = ubo.modelview * vec4(inPos.x, inPos.y, inPos.z, 1.0); 
 	vec4 projectedCorner = ubo.projection * vec4(0.5 * spriteSize, 0.5 * spriteSize, eyePos.z, eyePos.w);
