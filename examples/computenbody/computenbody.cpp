@@ -14,7 +14,7 @@
 // Lower particle count on Android for performance reasons
 #define PARTICLES_PER_ATTRACTOR 3 * 1024
 #else
-#define PARTICLES_PER_ATTRACTOR 10 * 1024
+#define PARTICLES_PER_ATTRACTOR 14 * 1024
 #endif
 
 class VulkanExample : public VulkanExampleBase
@@ -339,7 +339,9 @@ public:
         {
             Particle &particle = particleBuffer[j];
             particle.pos = glm::vec4(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)), 10.0f);
-            particle.vel = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine));
+			glm::vec3 orient(glm::normalize(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine))))
+            ;
+            particle.vel = glm::vec4(orient, 0.0f);
         }
         
         {

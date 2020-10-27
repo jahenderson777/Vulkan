@@ -46,6 +46,13 @@ vec3 rotate_vector(vec3 v, vec4 r) {
 	return qmul(r, qmul(vec4(v, 0), r_c)).xyz;
 }
 
+// A given angle of rotation about a given axis
+vec4 rotate_angle_axis(float angle, vec3 axis) {
+	float sn = sin(angle * 0.5);
+	float cs = cos(angle * 0.5);
+	return vec4(axis * sn, cs);
+}
+
 vec4 q_conj(vec4 q) {
 	return vec4(-q.x, -q.y, -q.z, q.w);
 }
@@ -100,20 +107,73 @@ void main() {
 	if (index >= ubo.particleCount) 
 		return;	
 
-    uint darkLightSplit = ubo.particleCount / 9;
-    bool indexIsDark = index > darkLightSplit;
+    int lightDarkSplit = ubo.particleCount ;
+    bool indexIsLight = index < lightDarkSplit;
     
 	vec3 position = particles[index].pos.xyz;
+    vec3 orient = particles[index].vel.xyz;
     vec3 totalDeltaPos = vec3(0.0);
-    vec4 totalDeltaOrient = particles[index].vel;
-    vec4 orient = normalize(particles[index].vel);
-    vec3 c = (vec3(0.0) - position) / 12.0;
-    float totalForce = 0.0;
+    vec3 totalDeltaOrient = vec3(0.0);
     
-	for (int i = 0; i < ubo.particleCount; i ++) {
+    vec3 c = (vec3(0.0) - position) / 27.0;
+    float totalForce = 0.0;
+
+    if (indexIsLight) {
+        for (int i = 0; i < lightDarkSplit; i++) {                 // LIGHT -> LIGHT
+            vec3 deltaPos = particles[i].pos.xyz - position;
+            //vec3 deltaOrient = particles[i].vel.xyz - position;
+            float l = 0.0001 + 100.0 * length(deltaPos);
+            //float g = l;
+            float f;
+            if (l < 12.0) {
+                f = (1.0 / 32768.0 * l);
+            } else {
+                f = 1.0 / (l*l*l*l);
+            }
+            f *= 200.0;
+            if (l < 300.0) {
+                totalDeltaPos += deltaPos * f;
+                //g = 400.0 / (l*l*l*l);
+                totalDeltaOrient += particles[i].vel.xyz * f;
+                totalForce += f;
+            }
+        }
+        for (int i = lightDarkSplit; i < ubo.particleCount; i++) { // LIGHT -> DARK
+            vec3 deltaPos = particles[i].pos.xyz - position;
+            float l = 0.0001 + 100.0 * length(deltaPos);
+            if (l < 10.0) {
+                l = 20.0 - l;
+            }
+            float f = 3320.0 / (l*l*l*l);
+            //totalForce += f;
+            totalDeltaPos += deltaPos * f;
+        }
+    } else {
+        for (int i = 0; i < lightDarkSplit; i++) {                 // DARK  -> LIGHT
+            vec3 deltaPos = particles[i].pos.xyz - position;
+            float l = 0.0001 + 100.0 * length(deltaPos);
+            if (l < 10.0) {
+                l = 20.0 - l;
+            }
+            float f = 300.0 / (l*l*l*l*l);
+            //totalForce += f;
+            totalDeltaPos += deltaPos * f;
+        }
+        for (int i = lightDarkSplit; i < ubo.particleCount; i++) { // DARK  -> DARK
+            vec3 deltaPos = particles[i].pos.xyz - position;
+            float l = 0.0001 + 100.0 * length(deltaPos);
+            if (l < 10.0) {
+                l = 20.0 - l;
+            }
+            float f = 54.0 / (l*l*l*l);
+            //totalForce += f;
+            totalDeltaPos += deltaPos * f;
+        }
+    }
+    
+	/*for (int i = 0; i < ubo.particleCount; i ++) {
         bool iIsDark = i > darkLightSplit;
         vec3 deltaPos = particles[i].pos.xyz - position;
-    
         float targetDistance = 1000.0 * length(deltaPos);
         if (targetDistance > 28.0) {
             float scale = 3.0;
@@ -135,17 +195,21 @@ void main() {
             }
             
         }
-	}
-    //totalDeltaOrient = normalize(totalDeltaOrient);
-    particles[index].vel = orient;
+	}*/
+    orient = normalize(orient + totalDeltaOrient);
+    particles[index].vel.xyz = orient;
+    totalDeltaPos =  totalDeltaPos / (totalDeltaPos + 1.0);
     
-    if (indexIsDark) {
+    if (indexIsLight) {
+        //totalDeltaPos = rotate_vector(totalDeltaPos,  q_slerp(QUATERNION_IDENTITY, orient, totalForce / (totalForce + 1.0))); //totalForce / (totalForce + 1.0)
+        totalForce *= 10.005;
+        vec4 qRot = rotate_angle_axis( 1.15 * totalForce / (totalForce + 1.0), orient);
+        totalDeltaPos = rotate_vector(totalDeltaPos, qRot);
+        particles[index].pos.xyz += totalDeltaPos/4.0;
+        particles[index].pos.w = 3.0 * totalForce / (totalForce + 1.0);
+    } 
+    else {
         particles[index].pos.xyz -= totalDeltaPos - c*c*c;
         particles[index].pos.w = 0.1;
-    }
-    else {
-        totalDeltaPos = rotate_vector(totalDeltaPos,  q_slerp(QUATERNION_IDENTITY, orient, totalForce / (totalForce + 1.0))); //totalForce / (totalForce + 1.0)
-        particles[index].pos.xyz += (totalDeltaPos/4.0);
-        particles[index].pos.w = 0.9;
     }
 }
