@@ -1,6 +1,10 @@
 
 #version 450
 
+#ifndef PI
+#define PI 3.1415926
+#endif
+
 struct Particle {
 	vec4 pos;
 	vec4 vel;
@@ -117,26 +121,17 @@ void main() {
     
     vec3 c = (vec3(0.0) - position) / 27.0;
     float totalForce = 0.0;
+    float theta = 1.0;
 
     if (indexIsLight) {
         for (int i = 0; i < lightDarkSplit; i++) {                 // LIGHT -> LIGHT
             vec3 deltaPos = particles[i].pos.xyz - position;
-            //vec3 deltaOrient = particles[i].vel.xyz - position;
-            float l = 0.0001 + 100.0 * length(deltaPos);
-            //float g = l;
-            float f;
-            if (l < 12.0) {
-                f = (1.0 / 32768.0 * l);
-            } else {
-                f = 1.0 / (l*l*l*l);
-            }
-            f *= 200.0;
-            if (l < 300.0) {
-                totalDeltaPos += deltaPos * f;
-                //g = 400.0 / (l*l*l*l);
-                totalDeltaOrient += particles[i].vel.xyz * f;
-                totalForce += f;
-            }
+            float l = 1.0 + 10.0 * length(deltaPos);
+            l = l*l*l*l;
+            float f = 1.0 / l;
+            totalDeltaPos += deltaPos * f;
+            totalDeltaOrient += particles[i].vel.xyz * f;
+            theta *= 1.0 - f / 3.0;
         }
         for (int i = lightDarkSplit; i < ubo.particleCount; i++) { // LIGHT -> DARK
             vec3 deltaPos = particles[i].pos.xyz - position;
@@ -198,15 +193,13 @@ void main() {
 	}*/
     orient = normalize(orient + totalDeltaOrient);
     particles[index].vel.xyz = orient;
-    totalDeltaPos =  totalDeltaPos / (totalDeltaPos + 1.0);
     
     if (indexIsLight) {
         //totalDeltaPos = rotate_vector(totalDeltaPos,  q_slerp(QUATERNION_IDENTITY, orient, totalForce / (totalForce + 1.0))); //totalForce / (totalForce + 1.0)
-        totalForce *= 10.005;
-        vec4 qRot = rotate_angle_axis( 1.15 * totalForce / (totalForce + 1.0), orient);
+        vec4 qRot = rotate_angle_axis( PI - theta * PI, orient);
         totalDeltaPos = rotate_vector(totalDeltaPos, qRot);
-        particles[index].pos.xyz += totalDeltaPos/4.0;
-        particles[index].pos.w = 3.0 * totalForce / (totalForce + 1.0);
+        particles[index].pos.xyz += totalDeltaPos;
+        particles[index].pos.w = theta;
     } 
     else {
         particles[index].pos.xyz -= totalDeltaPos - c*c*c;
