@@ -182,7 +182,7 @@ public:
 		bool overlay = false;
 	} settings;
 
-	VkClearColorValue defaultClearColor = { { 0.025f, 0.025f, 0.025f, 1.0f } };
+	VkClearColorValue defaultClearColor = { { 0.025f, 0.025f, 0.025f, 0.0f } };
 
 	static std::vector<const char*> args;
 
