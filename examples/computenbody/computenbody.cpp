@@ -7,6 +7,7 @@
 */
 
 #include "vulkanexamplebase.h"
+#include <math.h>  
 
 #define VERTEX_BUFFER_BIND_ID 0
 #define ENABLE_VALIDATION false
@@ -14,7 +15,7 @@
 // Lower particle count on Android for performance reasons
 #define PARTICLES_PER_ATTRACTOR 3 * 1024
 #else
-#define PARTICLES_PER_ATTRACTOR 24 * 1024
+#define PARTICLES_PER_ATTRACTOR 4 * 1024
 #endif
 
 class VulkanExample : public VulkanExampleBase
@@ -333,24 +334,25 @@ public:
         std::vector<Particle> particleBuffer(numParticles);
 
         std::default_random_engine rndEngine(benchmark.active ? 0 : (unsigned)time(nullptr));
-        std::uniform_real_distribution<float> rndDist(-2.0f, 2.0f);
+        std::uniform_real_distribution<float> rndDist(-0.1f, 0.1f);
 		std::uniform_real_distribution<float> rndAngle(0.0f, 6.28318530718f);
 
-        for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
+        /*for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
         {
             Particle &particle = particleBuffer[j];
             particle.pos = glm::vec4(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)), 10.0f);
 			glm::vec3 orient(glm::normalize(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine))));
             particle.vel = glm::vec4(orient, 0.0f);
-        }
+        }*/
 
-		/*for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
+		for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
         {
             Particle &particle = particleBuffer[j];
-            particle.pos = glm::vec4(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)), 10.0f);
-			glm::vec3 orient(glm::normalize(glm::vec3(rndAngle(rndEngine), rndAngle(rndEngine), rndDist(rndEngine))));
+			float theta = rndAngle(rndEngine);
+            particle.pos = glm::vec4(glm::vec3(0.5f * cos(theta), 0.5f * sin(theta), rndDist(rndEngine)), 10.0f);
+			glm::vec3 orient(glm::normalize(glm::vec3(cos(rndAngle(rndEngine)), 0.0f, sin(rndAngle(rndEngine)))));
             particle.vel = glm::vec4(orient, 0.0f);
-        }*/
+        }
         
         {
             compute.ubo.particleCount = numParticles;
@@ -1102,7 +1104,7 @@ public:
         std::string s = std::to_string(framenum);
 		std::string sPadded = "img_000" + std::string(6 - s.length(), '0') + s  + ".ppm";
 		framenum++;
-		saveScreenshot(sPadded.c_str());
+		//saveScreenshot(sPadded.c_str());
 	}
 };
 

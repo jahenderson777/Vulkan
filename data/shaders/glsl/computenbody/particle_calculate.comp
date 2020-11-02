@@ -111,7 +111,7 @@ void main() {
 	if (index >= ubo.particleCount) 
 		return;	
 
-    int lightDarkSplit = ubo.particleCount / 12;
+    int lightDarkSplit = ubo.particleCount;// / 12;
     bool indexIsLight = index < lightDarkSplit;
     
 	vec3 position = particles[index].pos.xyz;
@@ -164,7 +164,7 @@ void main() {
         }
     }
     
-    
+    particles[index].vel.w = 0.5;
     if (indexIsLight) {
         orient = normalize((orient * 100.0) + totalDeltaOrient + (totalDeltaPos * 30.0)); 
         particles[index].vel.xyz = orient;
