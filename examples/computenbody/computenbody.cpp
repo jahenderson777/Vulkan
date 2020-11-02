@@ -86,7 +86,7 @@ public:
 		camera.type = Camera::CameraType::lookat;
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
 		camera.setRotation(glm::vec3(-26.0f, 75.0f, 0.0f));
-		camera.setTranslation(glm::vec3(0.0f, 0.0f, -4.0f));
+		camera.setTranslation(glm::vec3(0.0f, 0.0f, -3.0f));
 		camera.movementSpeed = 0.3f;
 	}
 
@@ -334,15 +334,23 @@ public:
 
         std::default_random_engine rndEngine(benchmark.active ? 0 : (unsigned)time(nullptr));
         std::uniform_real_distribution<float> rndDist(-2.0f, 2.0f);
+		std::uniform_real_distribution<float> rndAngle(0.0f, 6.28318530718f);
 
         for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
         {
             Particle &particle = particleBuffer[j];
             particle.pos = glm::vec4(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)), 10.0f);
-			glm::vec3 orient(glm::normalize(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine))))
-            ;
+			glm::vec3 orient(glm::normalize(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine))));
             particle.vel = glm::vec4(orient, 0.0f);
         }
+
+		/*for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
+        {
+            Particle &particle = particleBuffer[j];
+            particle.pos = glm::vec4(glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine)), 10.0f);
+			glm::vec3 orient(glm::normalize(glm::vec3(rndAngle(rndEngine), rndAngle(rndEngine), rndDist(rndEngine))));
+            particle.vel = glm::vec4(orient, 0.0f);
+        }*/
         
         {
             compute.ubo.particleCount = numParticles;
@@ -1091,10 +1099,10 @@ public:
 		if (camera.updated) {
 			updateGraphicsUniformBuffers();
 		}
-		std::string s = "img_000" + std::to_string(framenum) + ".ppm";
-		std::string sPadded = std::string(6 - s.length(), '0') + s;
+        std::string s = std::to_string(framenum);
+		std::string sPadded = "img_000" + std::string(6 - s.length(), '0') + s  + ".ppm";
 		framenum++;
-		//saveScreenshot(s.c_str());
+		saveScreenshot(sPadded.c_str());
 	}
 };
 

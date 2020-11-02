@@ -157,8 +157,8 @@ public:
     void initSwapchain();
 	bool prepared = false;
 	bool resized = false;
-	uint32_t width = 2560;
-	uint32_t height = 1440;
+	uint32_t width = 1920;
+	uint32_t height = 1080;
 
 	vks::UIOverlay UIOverlay;
 
