@@ -334,7 +334,7 @@ public:
         std::vector<Particle> particleBuffer(numParticles);
 
         std::default_random_engine rndEngine(benchmark.active ? 0 : (unsigned)time(nullptr));
-        std::uniform_real_distribution<float> rndDist(-0.1f, 0.1f);
+        std::uniform_real_distribution<float> rndDist(-0.03f, 0.03f);
 		std::uniform_real_distribution<float> rndAngle(0.0f, 6.28318530718f);
 
         /*for (uint32_t j = 0; j < PARTICLES_PER_ATTRACTOR; j++)
@@ -350,7 +350,7 @@ public:
             Particle &particle = particleBuffer[j];
 			float theta = rndAngle(rndEngine);
             particle.pos = glm::vec4(glm::vec3(0.5f * cos(theta), 0.5f * sin(theta), rndDist(rndEngine)), 10.0f);
-			glm::vec3 orient(glm::normalize(glm::vec3(cos(rndAngle(rndEngine)), 0.0f, sin(rndAngle(rndEngine)))));
+			glm::vec3 orient(glm::normalize(glm::vec3( cos(theta), sin(theta), 1.0f)));
             particle.vel = glm::vec4(orient, 0.0f);
         }
         

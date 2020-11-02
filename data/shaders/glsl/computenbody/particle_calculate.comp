@@ -127,12 +127,12 @@ void main() {
         for (int i = 0; i < lightDarkSplit; i++) {                 // LIGHT -> LIGHT
             vec3 deltaPos = particles[i].pos.xyz - position;
             float l = 1.0 + 28.0 * length(deltaPos);
-            float f = 1.0 / (l*l*l*l);
-            if (l < 30.0) {
+            float f = 1.0 / (l*l*l);
+            //if (l < 260.0) {
                 totalDeltaPos += deltaPos * f;
                 totalDeltaOrient += particles[i].vel.xyz * f;
                 theta *= 1.0 - f / 6.0;
-            }
+           // }
         }
         for (int i = lightDarkSplit; i < ubo.particleCount; i++) { // LIGHT -> DARK
             vec3 deltaPos = particles[i].pos.xyz - position;
@@ -166,7 +166,7 @@ void main() {
     
     particles[index].vel.w = 0.5;
     if (indexIsLight) {
-        orient = normalize((orient * 100.0) + totalDeltaOrient + (totalDeltaPos * 30.0)); 
+        orient = normalize((orient * 100.0) + totalDeltaOrient + (totalDeltaPos * 50.0)); 
         particles[index].vel.xyz = orient;
         vec4 qRot = rotate_angle_axis( PI - theta * PI, orient);
         totalDeltaPos = rotate_vector(totalDeltaPos, qRot);
