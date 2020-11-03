@@ -111,7 +111,7 @@ void main() {
 	if (index >= ubo.particleCount) 
 		return;	
 
-    int lightDarkSplit = ubo.particleCount;// / 12;
+    int lightDarkSplit = ubo.particleCount / 12;
     bool indexIsLight = index < lightDarkSplit;
     
 	vec3 position = particles[index].pos.xyz;
@@ -126,8 +126,8 @@ void main() {
     if (indexIsLight) {
         for (int i = 0; i < lightDarkSplit; i++) {                 // LIGHT -> LIGHT
             vec3 deltaPos = particles[i].pos.xyz - position;
-            float l = 1.0 + 28.0 * length(deltaPos);
-            float f = 1.0 / (l*l*l);
+            float l = 1.0 + 18.0 * length(deltaPos);
+            float f = 1.0 / (l*l*l*l);
             //if (l < 260.0) {
                 totalDeltaPos += deltaPos * f;
                 totalDeltaOrient += particles[i].vel.xyz * f;
@@ -136,7 +136,7 @@ void main() {
         }
         for (int i = lightDarkSplit; i < ubo.particleCount; i++) { // LIGHT -> DARK
             vec3 deltaPos = particles[i].pos.xyz - position;
-            float l = 1.0 + 13.0 * length(deltaPos);
+            float l = 1.0 + 10.0 * length(deltaPos);
             float f = 1.0 / (l*l*l*l);
             if (l < 120.0) {
                 totalDeltaPos += deltaPos * f;
@@ -147,7 +147,7 @@ void main() {
     } else {
         for (int i = 0; i < lightDarkSplit; i++) {                 // DARK  -> LIGHT
             vec3 deltaPos = particles[i].pos.xyz - position;
-            float l = 1.0 + 20.0 * length(deltaPos);
+            float l = 1.0 + 17.0 * length(deltaPos);
             float f = 1.0 / (l*l*l*l);
             totalDeltaPos += deltaPos * f;
             totalDeltaOrient += particles[i].vel.xyz * f;
@@ -164,9 +164,8 @@ void main() {
         }
     }
     
-    particles[index].vel.w = 0.5;
     if (indexIsLight) {
-        orient = normalize((orient * 100.0) + totalDeltaOrient + (totalDeltaPos * 50.0)); 
+        orient = normalize((orient * 100.0) + totalDeltaOrient - (totalDeltaPos * 150.0)); 
         particles[index].vel.xyz = orient;
         vec4 qRot = rotate_angle_axis( PI - theta * PI, orient);
         totalDeltaPos = rotate_vector(totalDeltaPos, qRot);
