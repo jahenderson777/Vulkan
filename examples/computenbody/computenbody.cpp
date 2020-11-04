@@ -1104,7 +1104,7 @@ public:
         std::string s = std::to_string(framenum);
 		std::string sPadded = "img_000" + std::string(6 - s.length(), '0') + s  + ".ppm";
 		framenum++;
-		//saveScreenshot(sPadded.c_str());
+		saveScreenshot(sPadded.c_str());
 	}
 };
 

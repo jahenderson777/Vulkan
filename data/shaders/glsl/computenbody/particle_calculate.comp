@@ -147,7 +147,7 @@ void main() {
     } else {
         for (int i = 0; i < lightDarkSplit; i++) {                 // DARK  -> LIGHT
             vec3 deltaPos = particles[i].pos.xyz - position;
-            float l = 1.0 + 17.0 * length(deltaPos);
+            float l = 1.0 + 17.1 * length(deltaPos);
             float f = 1.0 / (l*l*l*l);
             totalDeltaPos += deltaPos * f;
             totalDeltaOrient += particles[i].vel.xyz * f;
